@@ -12,7 +12,7 @@ import requests
 from rich import print
 
 
-# Creating the first tool
+# Creating the weather tool
 @tool
 def get_weather(city: str) -> dict[str, str] | None:
     """
@@ -55,5 +55,41 @@ def get_weather(city: str) -> dict[str, str] | None:
         "wind_speed": data["wind"]["speed"]
     }
 
-result = get_weather.invoke("Hyderabad")
-print(f"The weather of Hyderabad is {result['temperature']}, {result['weather']}")
+# Creating tavily news tool to get latest news
+tavily_client = TavilyClient(
+        api_key=os.getenv("TAVILY_API_KEY"),
+    )
+
+@tool
+def get_news(city : str) -> str:
+    """
+    Search for recent news about a city.
+
+    Args:
+        city: Name of the city.
+
+    Returns:
+        A list of recent news articles.
+    """
+
+    response = tavily_client.search(
+        query=f"latest news of {city}",
+        search_depth="basic",
+        topic="news",
+        max_results=3
+    )
+
+    news = []
+
+    for result in response["results"]:
+        news.append({
+            "title": result.get("title"),
+            "url": result.get("url"),
+            "content": result.get("content")
+        })
+
+    return news
+
+
+news_result = get_news.invoke("Mumbai")
+print(news_result)
