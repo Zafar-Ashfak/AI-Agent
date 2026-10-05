@@ -1,10 +1,10 @@
 import streamlit as st
 from dotenv import load_dotenv
+
+load_dotenv()
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 from agent_tools import tools
-
-load_dotenv()
 
 tools = {
     "get_weather": tools.get_weather,
