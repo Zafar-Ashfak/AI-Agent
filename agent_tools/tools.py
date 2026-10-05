@@ -77,7 +77,7 @@ def get_news(city: str) -> str:
 
     response = tavily_client.search(
         query=f"latest news in {city} today",
-        search_depth="advanced",
+        search_depth="basic",
         topic="news",
         max_results=5
     )
@@ -99,62 +99,3 @@ def get_news(city: str) -> str:
         )
 
     return f"Latest news in {city}: \n\n {'\n\n'.join(news)}"
-
-
-# print(get_news.invoke("Delhi"))
-
-def get_llm():
-    llm = HuggingFaceEndpoint(
-        repo_id="openai/gpt-oss-120b",
-        temperature=0.2
-    )
-
-    return ChatHuggingFace(llm=llm)
-
-
-# ***************** Step 2: tool binding *****************
-llm = get_llm()
-
-tools = {
-    "get_weather": get_weather,
-    "get_news": get_news
-}
-
-llm_with_tool = llm.bind_tools([get_weather, get_news])
-
-# ***************** Step 3: tool calling *****************
-print("---------- City Intelligence System ----------")
-print("Type exit or quit to close the chat")
-
-messages = []
-
-while True:
-    user_input = input("You : ")
-    if user_input.lower() in ["exit", "quit"]:
-        break
-
-    human_msg = HumanMessage(content=user_input)
-    messages.append(human_msg)
-
-    while True:
-        result = llm_with_tool.invoke(messages)  # AIMessage
-        messages.append(result)
-
-        if result.tool_calls:
-            for tool_call in result.tool_calls:
-                tool_name = tool_call['name']
-
-                # Tool executing
-                tool_result = tools[tool_name].invoke(tool_call)
-                messages.append(ToolMessage(
-                    content=tool_result,
-                    tool_call_id=tool_call['id']
-                ))
-
-            continue
-
-        else:
-            print("\n✨Final Answer ✨: \n")
-            print(result.content)
-            print(f"\n {'-' * 40} \n")
-            break
