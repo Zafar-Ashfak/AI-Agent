@@ -86,7 +86,7 @@ def get_news(city: str) -> str:
         content = result.get("content", "")
 
         news.append(
-            f"- {title}\n 🔗{url}\n {content[:200]}..."
+            f"- {title}\n 🔗{url}\n {content}..."
         )
 
     return f"Latest news in {city}: \n\n {'\n\n'.join(news)}"
