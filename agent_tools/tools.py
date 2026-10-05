@@ -4,10 +4,7 @@ load_dotenv()
 
 from langchain_core.tools import tool
 from tavily import TavilyClient
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_core.messages import HumanMessage, ToolMessage
 import os, requests
-from rich import print
 
 
 # ***************** Step 1: Creating tool *****************
