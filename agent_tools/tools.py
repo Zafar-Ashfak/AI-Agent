@@ -1,5 +1,3 @@
-from typing import Any
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,7 +5,7 @@ load_dotenv()
 from langchain_core.tools import tool
 from tavily import TavilyClient
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 import os, requests
 from rich import print
 
@@ -46,7 +44,15 @@ def get_weather(city: str) -> str:
     data = response.json()
     temp = data['main']['temp']
     desc = data['weather'][0]['description']
-    return f"Weather in {city}: {desc}, {temp}°C"
+
+    return (
+        f"Weather in {city}: "
+        f"{data['weather'][0]['description']}, "
+        f"Temperature: {data['main']['temp']}°C, "
+        f"Feels like: {data['main']['feels_like']}°C, "
+        f"Humidity: {data['main']['humidity']}%, "
+        f"Wind speed: {data['wind']['speed']} m/s"
+    )
 
 
 # print(get_weather.invoke("Mumbai"))
@@ -70,16 +76,16 @@ def get_news(city: str) -> str:
     """
 
     response = tavily_client.search(
-        query=city,
-        search_depth="basic",
+        query=f"latest news in {city} today",
+        search_depth="advanced",
         topic="news",
-        max_results=3
+        max_results=5
     )
 
     results = response.get("results", [])
 
     if not results:
-        return f"No news found for {city}"
+        return f"No recent news found for {city}"
 
     news = []
 
@@ -138,11 +144,7 @@ while True:
             for tool_call in result.tool_calls:
                 tool_name = tool_call['name']
 
-                confirm = input(f"Agent wants to call {tool_name} \nApprove (yes/no): ")
-                if confirm.lower() == "no":
-                    print("Tool call denied and cannot get the latest information")
-                    break
-
+                # Tool executing
                 tool_result = tools[tool_name].invoke(tool_call)
                 messages.append(ToolMessage(
                     content=tool_result,
@@ -156,5 +158,3 @@ while True:
             print(result.content)
             print(f"\n {'-' * 40} \n")
             break
-
-
