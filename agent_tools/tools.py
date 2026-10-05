@@ -7,6 +7,7 @@ from tavily import TavilyClient
 import os, requests
 
 
+
 # ***************** Step 1: Creating tool *****************
 
 # Creating the get_weather tool
@@ -41,15 +42,7 @@ def get_weather(city: str) -> str:
     data = response.json()
     temp = data['main']['temp']
     desc = data['weather'][0]['description']
-
-    return (
-        f"Weather in {city}: "
-        f"{data['weather'][0]['description']}, "
-        f"Temperature: {data['main']['temp']}°C, "
-        f"Feels like: {data['main']['feels_like']}°C, "
-        f"Humidity: {data['main']['humidity']}%, "
-        f"Wind speed: {data['wind']['speed']} m/s"
-    )
+    return f"Weather in {city}: {desc}, {temp}°C"
 
 
 # print(get_weather.invoke("Mumbai"))
@@ -73,11 +66,12 @@ def get_news(city: str) -> str:
     """
 
     response = tavily_client.search(
-        query=f"latest news in {city} today",
+        query=city,
         search_depth="basic",
         topic="news",
-        max_results=5
+        max_results=3
     )
+
 
     results = response.get("results", [])
 

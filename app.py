@@ -1,14 +1,15 @@
 import streamlit as st
-from dotenv import load_dotenv
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
-from agent_tools import tools
 
+from dotenv import load_dotenv
 load_dotenv()
 
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
+from agent_tools.tools import get_weather, get_news
+
 tools = {
-    "get_weather": tools.get_weather,
-    "get_news": tools.get_news
+    "get_weather": get_weather,
+    "get_news": get_news
 }
 
 SYSTEM_PROMPT = SystemMessage(
@@ -24,6 +25,7 @@ SYSTEM_PROMPT = SystemMessage(
         "Present news as bullet points. "
         "Each news item should be detailed and written as a separate paragraph. "
         "Include enough context to explain what happened and why it is important. "
+        "Include news links in each section"
 
         "Always keep weather and news visually separate. "
         "Do not mix weather information with news items. "
