@@ -1,32 +1,34 @@
+from typing import Any
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 from tavily import TavilyClient
-import os
-import requests
-
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+import os, requests
 from rich import print
 
 
-# Creating the weather tool
+# ***************** Step 1: Creating tool *****************
+
+# Creating the get_weather tool
 @tool
-def get_weather(city: str) -> dict[str, str] | None:
+def get_weather(city: str) -> str:
     """
-    Get the current weather information for a city.
+        Get the current weather information for a city.
 
-    Args:
-        city: Name of the city.
+        Args:
+            city: Name of the city.
 
-    Returns:
-        Current temperature, feels-like temperature,
-        humidity, wind speed and weather description.
-    """
+        Returns:
+            Current temperature, feels-like temperature,
+            humidity, wind speed and weather description.
+        """
 
-    api_key = os.getenv(key="OPENWEATHER_API_KEY")
+    api_key = os.getenv("OPENWEATHER_API_KEY")
 
     url = "https://api.openweathermap.org/data/2.5/weather"
 
@@ -39,29 +41,24 @@ def get_weather(city: str) -> dict[str, str] | None:
     response = requests.get(url, params=params, timeout=10)
 
     if response.status_code != 200:
-        return {
-            "error": f"Could not fetch weather for {city}"
-        }
+        return f"error: Could not fetch weather for {city}"
 
     data = response.json()
+    temp = data['main']['temp']
+    desc = data['weather'][0]['description']
+    return f"Weather in {city}: {desc}, {temp}°C"
 
-    return {
-        "city": data["name"],
-        "country": data["sys"]["country"],
-        "temperature": data["main"]["temp"],
-        "feels_like": data["main"]["feels_like"],
-        "humidity": data["main"]["humidity"],
-        "weather": data["weather"][0]["description"],
-        "wind_speed": data["wind"]["speed"]
-    }
 
-# Creating tavily news tool to get latest news
+# print(get_weather.invoke("Mumbai"))
+
 tavily_client = TavilyClient(
-        api_key=os.getenv("TAVILY_API_KEY"),
-    )
+    api_key=os.getenv("TAVILY_API_KEY")
+)
 
+
+# Creating a get_news tool
 @tool
-def get_news(city : str) -> str:
+def get_news(city: str) -> str:
     """
     Search for recent news about a city.
 
@@ -73,23 +70,91 @@ def get_news(city : str) -> str:
     """
 
     response = tavily_client.search(
-        query=f"latest news of {city}",
+        query=city,
         search_depth="basic",
         topic="news",
         max_results=3
     )
 
+    results = response.get("results", [])
+
+    if not results:
+        return f"No news found for {city}"
+
     news = []
 
-    for result in response["results"]:
-        news.append({
-            "title": result.get("title"),
-            "url": result.get("url"),
-            "content": result.get("content")
-        })
+    for result in results:
+        title = result.get("title", "No title")
+        url = result.get("url", "")
+        content = result.get("content", "")
 
-    return news
+        news.append(
+            f"- {title}\n 🔗{url}\n {content[:200]}..."
+        )
+
+    return f"Latest news in {city}: \n\n {'\n\n'.join(news)}"
 
 
-news_result = get_news.invoke("Mumbai")
-print(news_result)
+# print(get_news.invoke("Delhi"))
+
+def get_llm():
+    llm = HuggingFaceEndpoint(
+        repo_id="openai/gpt-oss-120b",
+        temperature=0.2
+    )
+
+    return ChatHuggingFace(llm=llm)
+
+
+# ***************** Step 2: tool binding *****************
+llm = get_llm()
+
+tools = {
+    "get_weather": get_weather,
+    "get_news": get_news
+}
+
+llm_with_tool = llm.bind_tools([get_weather, get_news])
+
+# ***************** Step 3: tool calling *****************
+print("---------- City Intelligence System ----------")
+print("Type exit or quit to close the chat")
+
+messages = []
+
+while True:
+    user_input = input("You : ")
+    if user_input.lower() in ["exit", "quit"]:
+        break
+
+    human_msg = HumanMessage(content=user_input)
+    messages.append(human_msg)
+
+    while True:
+        result = llm_with_tool.invoke(messages)  # AIMessage
+        messages.append(result)
+
+        if result.tool_calls:
+            for tool_call in result.tool_calls:
+                tool_name = tool_call['name']
+
+                confirm = input(f"Agent wants to call {tool_name} \nApprove (yes/no): ")
+                if confirm.lower() == "no":
+                    print("Tool call denied and cannot get the latest information")
+                    break
+
+                tool_result = tools[tool_name].invoke(tool_call)
+                messages.append(ToolMessage(
+                    content=tool_result,
+                    tool_call_id=tool_call['id']
+                ))
+
+            continue
+
+        else:
+            print("\n✨Final Answer ✨: \n")
+            print(result.content)
+            print(f"\n {'-' * 40} \n")
+            break
+
+
